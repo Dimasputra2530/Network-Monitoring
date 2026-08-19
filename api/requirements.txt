@@ -1,0 +1,11 @@
+fastapi==0.115.0
+uvicorn[standard]==0.30.6
+pandas==2.2.3
+PyMySQL==1.1.1
+python-dotenv==1.0.1
+
+# Opsional -- hanya dipakai kalau file database MaxMind GeoLite2 (data/GeoLite2-City.mmdb,
+# data/GeoLite2-ASN.mmdb) sudah ditaruh di data/. Kalau belum, API tetap jalan normal
+# (kolom Country/City/Organization di Traffic Analysis otomatis "Unknown") -- lihat
+# geoip_lookup.py & README.md bagian "GeoIP (Traffic Analysis)".
+geoip2==4.8.0

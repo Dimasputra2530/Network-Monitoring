@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SysLog Monitoring</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,
+<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'>
+<rect width='64' height='64' rx='12' fill='%231e293b'/>
+<circle cx='20' cy='32' r='6' fill='%233b82f6'/>
+<circle cx='44' cy='20' r='6' fill='%233b82f6'/>
+<circle cx='44' cy='44' r='6' fill='%233b82f6'/>
+<path d='M25 29L39 23M25 35L39 41' stroke='%2360a5fa' stroke-width='4'/>
+</svg>">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="app">
+  <!-- SIDEBAR -->
+  <aside class="sidebar" id="sidebar">
+    <div class="brand">
+      <div class="brand-mark"><i class="fa-solid fa-diagram-project"></i></div>
+      <div class="brand-text">
+        <div class="t1">SYSLOG MONITORING</div>
+        <div class="t2">Network Infrastructure</div>
+      </div>
+    </div>
+    <nav class="nav">
+      <a class="nav-item active" data-page="overview"><i class="fa-solid fa-grid-2"></i>Dashboard</a>
+      <a class="nav-item" data-page="logs"><i class="fa-solid fa-list-ul"></i>Real-time Logs</a>
+      <a class="nav-item" data-page="traffic"><i class="fa-solid fa-chart-line"></i>Traffic Analysis</a>
+      <a class="nav-item" data-page="anomaly"><i class="fa-solid fa-triangle-exclamation"></i>Anomaly Detection<span class="nav-badge" id="anomalyNavBadge">0</span></a>
+      <a class="nav-item" data-page="reports"><i class="fa-solid fa-file-lines"></i>Reports</a>
+      <a class="nav-item" data-page="alerts"><i class="fa-solid fa-bell"></i>Alerts</a>
+      <div class="nav-section-label">Sumber Data</div>
+      <a class="nav-item" style="cursor:default;" title="Data dari ETL pipeline"><i class="fa-solid fa-database"></i>network_clean</a>
+    </nav>
+    <div class="sidebar-foot">
+      <a class="logout-btn"><i class="fa-solid fa-arrow-right-from-bracket"></i>Logout</a>
+    </div>
+  </aside>
+  <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
+
+  <!-- MAIN -->
+  <div class="main">
+    <div class="topbar">
+      <div class="topbar-left">
+        <button class="hamburger" id="hamburgerBtn" aria-label="Buka menu"><i class="fa-solid fa-bars"></i></button>
+        <div>
+          <h1 id="pageTitle">Dashboard Overview</h1>
+          <p id="pageSubtitle">Ringkasan aktivitas jaringan hari ini</p>
+        </div>
+      </div>
+      <div class="topbar-right" id="topbarRight">
+        <div class="pill"><i class="fa-regular fa-calendar"></i><span id="dateRangePill">—</span></div>
+        <div class="status-badge offline" id="connStatusBadge" title="Status koneksi ke server">
+          <span class="status-dot" id="connStatusDot"></span>
+          <span id="connStatusText">OFFLINE</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="content">
+
+      <!-- ============ PAGE 1: OVERVIEW ============ -->
+      <section class="page active" id="page-overview">
+        <div class="grid grid-4 mb-18" id="overviewStats"></div>
+
+        <div class="grid grid-2 mb-18">
+          <div class="card">
+            <div class="card-head">
+              <div>
+                <div class="card-title">Traffic (MB) Per Hari</div>
+                <div class="card-sub">Volume trafik per hari (data tersedia terbaru)</div>
+              </div>
+            </div>
+            <div class="chart-wrap tall"><canvas id="chartTrend"></canvas></div>
+          </div>
+          <div class="card">
+            <div class="card-head">
+              <div>
+                <div class="card-title">Traffic per Protokol</div>
+                <div class="card-sub">Distribusi TCP vs UDP</div>
+              </div>
+            </div>
+            <div class="chart-wrap small"><canvas id="chartProtoDonut"></canvas></div>
+            <div id="protoLegend" style="margin-top:8px;"></div>
+          </div>
+        </div>
+
+        <div class="grid grid-2-even">
+          <div class="card">
+            <div class="card-head">
+              <div>
+                <div class="card-title">Top 5 IP Sumber</div>
+                <div class="card-sub">Berdasarkan total traffic</div>
+              </div>
+            </div>
+            <div style="overflow-x:auto;">
+              <table>
+                <thead><tr><th>IP Sumber</th><th>Total Traffic</th><th>Persentase</th></tr></thead>
+                <tbody id="topSrcTable"></tbody>
+              </table>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-head">
+              <div>
+                <div class="card-title">Top 5 Destination Port</div>
+                <div class="card-sub">Berdasarkan volume data</div>
+              </div>
+            </div>
+            <div style="overflow-x:auto;">
+              <table>
+                <thead><tr><th>Port</th><th>Total Traffic</th><th>Persentase</th></tr></thead>
+                <tbody id="topPortTable"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid grid-2 mb-18">
+          <div class="card">
+            <div class="card-head">
+              <div>
+                <div class="card-title">Traffic Bulanan</div>
+                <div class="card-sub">Total traffic per bulan, seluruh histori data</div>
+              </div>
+            </div>
+            <div class="chart-wrap tall"><canvas id="chartMonthlyTraffic"></canvas></div>
+          </div>
+          <div class="card">
+            <div class="card-head">
+              <div>
+                <div class="card-title">Traffic Tahunan</div>
+                <div class="card-sub">Total traffic per tahun</div>
+              </div>
+            </div>
+            <div class="chart-wrap tall"><canvas id="chartYearlyTraffic"></canvas></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-head">
+            <div>
+              <div class="card-title">Guest / User Activity</div>
+              <div class="card-sub">Traffic per host, dipetakan ke User/Guest bila mapping-nya tersedia di <code>data/</code></div>
+            </div>
+          </div>
+          <div id="userMappingUnavailableNotice" class="notice" style="display:none;">
+            <i class="fa-solid fa-circle-info"></i>
+            <div>File mapping User/Guest belum ditaruh di <code>data/</code>, jadi kolom User masih "Unknown User". Lihat <code>api/README.md</code> untuk format file yang diharapkan.</div>
+          </div>
+          <div style="overflow-x:auto;">
+            <table>
+              <thead><tr><th>User</th><th>IP</th><th>Device</th><th>Traffic</th></tr></thead>
+              <tbody id="userActivityTable"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ PAGE 2: REAL-TIME LOGS ============ -->
+      <section class="page" id="page-logs">
+        <div class="card mb-18">
+          <div class="filter-row mb-18">
+            <div class="search-wrap">
+              <i class="fa-solid fa-magnifying-glass"></i>
+              <input class="input" id="logSearch" placeholder="Cari IP, host, port, atau protocol...">
+            </div>
+            <select class="select" id="logProtoFilter">
+              <option value="">Semua Protocol</option>
+              <option value="TCP">TCP</option>
+              <option value="UDP">UDP</option>
+            </select>
+            <div class="date-filter-wrap">
+              <button class="btn" id="logsDateBtn" type="button"><i class="fa-regular fa-calendar"></i><span id="logsDateBtnLabel">Pilih Tanggal</span></button>
+              <div class="date-filter-popover" id="logsDatePopover">
+                <div class="date-filter-row">
+                  <label>Dari</label>
+                  <input type="date" class="input" id="logsDateFrom">
+                </div>
+                <div class="date-filter-row">
+                  <label>Sampai</label>
+                  <input type="date" class="input" id="logsDateTo">
+                </div>
+                <div class="date-filter-actions">
+                  <button class="btn" id="logsDateClear" type="button">Reset</button>
+                  <button class="btn btn-primary" id="logsDateApply" type="button">Terapkan</button>
+                </div>
+              </div>
+            </div>
+            <select class="select" id="logsSortFilter">
+              <option value="desc">Terbaru → Terlama</option>
+              <option value="asc">Terlama → Terbaru</option>
+            </select>
+            <button class="btn" id="logRefreshBtn"><i class="fa-solid fa-arrows-rotate"></i>Refresh</button>
+          </div>
+          <div style="overflow-x:auto;">
+            <table>
+              <thead><tr>
+                <th>Waktu</th><th>Source IP</th><th>Host</th><th>Destination IP</th><th>Country</th><th>City</th><th>Organization/ASN</th><th>Hostname</th><th>Port</th><th>Protocol</th><th>Application</th><th>Data Size</th>
+              </tr></thead>
+              <tbody id="logsTableBody"></tbody>
+            </table>
+          </div>
+          <div class="pagination">
+            <span class="kbd-hint" id="logsCount">—</span>
+            <div class="page-btns" id="logsPagination"></div>
+            <select class="select" id="logsPerPage">
+              <option value="10">10 / halaman</option>
+              <option value="25" selected>25 / halaman</option>
+              <option value="50">50 / halaman</option>
+            </select>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ PAGE 3: TRAFFIC ANALYSIS ============ -->
+      <section class="page" id="page-traffic">
+        <div class="tabs mb-18" id="trafficTabs">
+          <button class="tab-btn active" data-ttab="ringkasan">Ringkasan</button>
+          <button class="tab-btn" data-ttab="srcip">Top IP Sumber</button>
+          <button class="tab-btn" data-ttab="dstip">Top Destination IP</button>
+          <button class="tab-btn" data-ttab="port">Top Port</button>
+          <button class="tab-btn" data-ttab="proto">Protocol</button>
+        </div>
+
+        <div id="ttab-ringkasan" class="ttab-panel">
+          <div class="grid grid-4 mb-18" id="trafficStats"></div>
+          <div class="grid grid-2 mb-18">
+            <div class="card">
+              <div class="card-title mb-18">Trend Traffic (MB)</div>
+              <div class="chart-wrap tall"><canvas id="chartTrafficTrend"></canvas></div>
+            </div>
+            <div class="card">
+              <div class="card-title mb-18">Traffic per Protokol</div>
+              <div class="chart-wrap tall"><canvas id="chartTrafficProto"></canvas></div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-title mb-18">Rata-rata Traffic per Jam</div>
+            <div class="chart-wrap"><canvas id="chartHourly"></canvas></div>
+          </div>
+        </div>
+
+        <div id="ttab-srcip" class="ttab-panel" style="display:none;">
+          <div class="card">
+            <div class="card-title mb-18">Top 10 IP Sumber (Berdasarkan Total Traffic)</div>
+            <div style="overflow-x:auto;">
+              <table><thead><tr><th>#</th><th>IP Sumber</th><th>Total Traffic</th><th>Persentase</th></tr></thead>
+              <tbody id="fullSrcTable"></tbody></table>
+            </div>
+          </div>
+        </div>
+
+        <div id="ttab-dstip" class="ttab-panel" style="display:none;">
+          <div class="card">
+            <div class="flex-between mb-18">
+              <div>
+                <div class="card-title">Top 10 Destination IP (Subnet /24)</div>
+                <div class="card-sub">Country, City, Organization/ASN &amp; Hostname dari MaxMind GeoLite2 &mdash; Application berdasarkan Port + Protocol yang paling sering dipakai</div>
+              </div>
+            </div>
+            <div id="geoipUnavailableNotice" class="notice" style="display:none;">
+              <i class="fa-solid fa-circle-info"></i>
+              <div>Database GeoLite2 belum ditemukan di <code>data/</code>, jadi kolom Country/City/Organization masih "Unknown". Lihat <code>api/README.md</code> untuk cara mengaktifkannya.</div>
+            </div>
+            <div style="overflow-x:auto;">
+              <table><thead><tr><th>#</th><th>Destination IP</th><th>Country</th><th>City</th><th>Organization/ASN</th><th>Hostname</th><th>Application</th><th>Total Traffic</th><th>Persentase</th></tr></thead>
+              <tbody id="fullDstTable"></tbody></table>
+            </div>
+          </div>
+        </div>
+
+        <div id="ttab-port" class="ttab-panel" style="display:none;">
+          <div class="card">
+            <div class="card-title mb-18">Top 10 Destination Port</div>
+            <div style="overflow-x:auto;">
+              <table><thead><tr><th>#</th><th>Port</th><th>Layanan</th><th>Koneksi</th><th>Total Traffic</th><th>Persentase</th></tr></thead>
+              <tbody id="fullPortTable"></tbody></table>
+            </div>
+          </div>
+        </div>
+
+        <div id="ttab-proto" class="ttab-panel" style="display:none;">
+          <div class="grid grid-2">
+            <div class="card">
+              <div class="card-title mb-18">Distribusi Protocol</div>
+              <div class="chart-wrap tall"><canvas id="chartProtoFull"></canvas></div>
+            </div>
+            <div class="card">
+              <div class="card-title mb-18">Detail per Protocol</div>
+              <div style="overflow-x:auto;">
+                <table><thead><tr><th>Protocol</th><th>Koneksi</th><th>Total Traffic</th><th>Persentase</th></tr></thead>
+                <tbody id="protoDetailTable"></tbody></table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ PAGE 4: ANOMALY DETECTION ============ -->
+      <section class="page" id="page-anomaly">
+        <div class="grid grid-4 mb-18" id="anomalyStats"></div>
+
+        <div class="grid grid-2 mb-18">
+          <div class="card">
+            <div class="card-title">Distribusi Tipe Anomali</div>
+            <div class="card-sub">Diklasifikasikan otomatis dari pola fitur perilaku host</div>
+            <div class="chart-wrap tall" style="margin-top:16px;"><canvas id="chartAnomalyType"></canvas></div>
+          </div>
+          <div class="card">
+            <div class="card-title">Trend Anomali</div>
+            <div class="card-sub">Jumlah anomali terdeteksi per hari</div>
+            <div class="chart-wrap tall" style="margin-top:16px;"><canvas id="chartAnomalyTrend"></canvas></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-head">
+            <div>
+              <div class="card-title">Anomali Terbaru</div>
+              <div class="card-sub">Daftar seluruh anomali yang terdeteksi pada periode terpilih</div>
+            </div>
+          </div>
+          <div class="filter-row mb-18">
+            <div class="date-range-wrap">
+              <i class="fa-regular fa-calendar"></i>
+              <input type="date" class="input date-input" id="anomalyDateStart">
+              <span class="date-range-sep">–</span>
+              <input type="date" class="input date-input" id="anomalyDateEnd">
+            </div>
+            <select class="select" id="anomalyLevelFilter">
+              <option value="">Semua Level</option>
+              <option value="Tinggi">Tinggi</option>
+              <option value="Sedang">Sedang</option>
+              <option value="Rendah">Rendah</option>
+            </select>
+            <select class="select" id="anomalyTypeFilter"><option value="">Semua Tipe</option></select>
+            <div class="search-wrap">
+              <i class="fa-solid fa-magnifying-glass"></i>
+              <input class="input" id="anomalySearchIp" placeholder="Cari IP...">
+            </div>
+            <button class="btn" id="anomalyRefreshBtn"><i class="fa-solid fa-arrows-rotate"></i>Refresh</button>
+          </div>
+          <div style="overflow-x:auto;">
+            <table>
+              <thead><tr><th>Waktu</th><th>Level</th><th>Tipe Anomali</th><th>Pengguna / IP</th><th>Deskripsi</th><th>Score</th></tr></thead>
+              <tbody id="anomalyTableBody"></tbody>
+            </table>
+          </div>
+          <div class="pagination">
+            <span class="kbd-hint" id="anomalyCount">—</span>
+            <div class="page-btns" id="anomalyPagination"></div>
+            <select class="select" id="anomalyPerPage">
+              <option value="10">10 / halaman</option>
+              <option value="25" selected>25 / halaman</option>
+              <option value="50">50 / halaman</option>
+            </select>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ PAGE 5/6: REPORTS ============ -->
+      <section class="page" id="page-reports">
+        <div class="flex-between mb-18">
+          <div class="tabs">
+            <button class="tab-btn active" data-rtab="bulanan">Laporan Bulanan</button>
+            <button class="tab-btn" data-rtab="tahunan">Laporan Tahunan</button>
+          </div>
+        </div>
+
+        <div id="rtab-bulanan">
+          <div class="card mb-18">
+            <div class="flex-between">
+              <div>
+                <div class="card-title">Laporan Bulanan</div>
+                <div class="card-sub">Ringkasan laporan trafik per hari</div>
+              </div>
+              <div class="filter-row">
+                <select class="select" id="monthSelect"></select>
+                <button class="btn btn-primary" id="downloadMonthlyCsv"><i class="fa-solid fa-download"></i>Download CSV</button>
+              </div>
+            </div>
+          </div>
+
+          <div id="monthlyChartsWrap">
+            <div class="card mb-18">
+              <div class="card-title">Traffic &amp; Total Koneksi per Hari</div>
+              <div class="card-sub mb-18">Volume trafik (MB) dan jumlah koneksi setiap hari dalam bulan terpilih</div>
+              <div class="chart-wrap tall"><canvas id="chartMonthlyTrafficKoneksi"></canvas></div>
+            </div>
+            <div class="card">
+              <div class="card-title">IP Unik &amp; Jumlah Anomali per Hari</div>
+              <div class="card-sub mb-18">Jumlah host unik aktif dan anomali terdeteksi setiap hari dalam bulan terpilih</div>
+              <div class="chart-wrap tall"><canvas id="chartMonthlyIpAnomali"></canvas></div>
+            </div>
+          </div>
+          <div class="card" id="monthlyEmptyCard" style="display:none;">
+            <div class="empty-state"><i class="fa-solid fa-file-circle-question"></i>Belum ada data untuk bulan ini.</div>
+          </div>
+        </div>
+
+        <div id="rtab-tahunan" style="display:none;">
+          <div class="card mb-18">
+            <div class="flex-between">
+              <div>
+                <div class="card-title">Laporan Tahunan</div>
+                <div class="card-sub">Ringkasan laporan trafik per bulan</div>
+              </div>
+              <div class="filter-row">
+                <select class="select" id="yearSelect"><option value="2026">2026</option></select>
+                <button class="btn btn-primary" id="downloadYearlyCsv"><i class="fa-solid fa-download"></i>Download CSV</button>
+              </div>
+            </div>
+          </div>
+
+          <div id="yearlyChartsWrap">
+            <div class="card mb-18">
+              <div class="card-title">Traffic &amp; Total Koneksi per Bulan</div>
+              <div class="card-sub mb-18">Volume trafik (MB) dan jumlah koneksi setiap bulan dalam tahun terpilih</div>
+              <div class="chart-wrap tall"><canvas id="chartYearlyTrafficKoneksi"></canvas></div>
+            </div>
+            <div class="card">
+              <div class="card-title">IP Unik &amp; Jumlah Anomali per Bulan</div>
+              <div class="card-sub mb-18">Jumlah host unik aktif dan anomali terdeteksi setiap bulan dalam tahun terpilih</div>
+              <div class="chart-wrap tall"><canvas id="chartYearlyIpAnomali"></canvas></div>
+            </div>
+          </div>
+          <div class="card" id="yearlyEmptyCard" style="display:none;">
+            <div class="empty-state"><i class="fa-solid fa-file-circle-question"></i>Belum ada data untuk tahun ini.</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ PAGE: ALERTS ============ -->
+      <section class="page" id="page-alerts">
+        <div class="notice"><i class="fa-solid fa-circle-info"></i>Feed ini menampilkan seluruh anomali yang terdeteksi model Isolation Forest sebagai alert, dikelompokkan per host dan diurutkan dari yang paling baru.</div>
+
+        <!-- Filters -->
+        <div class="card mb-18">
+          <div class="alert-filters">
+            <div class="alert-filter-group">
+              <div class="alert-filter-label">Filter Severity</div>
+              <div class="severity-pills" id="severityPills">
+                <button class="severity-pill active" data-severity="">Semua</button>
+                <button class="severity-pill sev-red" data-severity="Tinggi">Tinggi</button>
+                <button class="severity-pill sev-amber" data-severity="Sedang">Sedang</button>
+                <button class="severity-pill sev-blue" data-severity="Rendah">Rendah</button>
+              </div>
+            </div>
+            <div class="alert-filter-group">
+              <div class="alert-filter-label">Jenis Alert</div>
+              <select class="select" id="alertTypeFilter"><option value="">Semua Jenis</option></select>
+            </div>
+            <div class="alert-filter-group">
+              <div class="alert-filter-label">Urutkan</div>
+              <select class="select" id="alertSortFilter">
+                <option value="terbaru">Terbaru</option>
+                <option value="terlama">Terlama</option>
+                <option value="severity">Severity Tertinggi</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- Summary cards -->
+        <div class="grid grid-4 mb-18" id="alertsStats"></div>
+
+        <!-- Host alert cards -->
+        <div id="alertsList"></div>
+
+        <!-- Pagination -->
+        <div class="card" id="alertsPaginationWrap">
+          <div class="pagination">
+            <div class="kbd-hint" id="alertsPaginationInfo">Menampilkan 0 dari 0 alerts</div>
+            <div class="page-btns" id="alertsPageBtns"></div>
+          </div>
+        </div>
+      </section>
+
+    </div>
+  </div>
+</div>
+
+<!-- ============ DETAIL MODAL (Real-time Logs & Anomaly Detection) ============ -->
+<div class="modal-overlay" id="detailModalOverlay">
+  <div class="modal-box">
+    <div class="modal-head">
+      <div class="modal-title" id="detailModalTitle">Detail</div>
+      <button class="modal-close" id="detailModalClose"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="modal-body" id="detailModalBody"></div>
+  </div>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>

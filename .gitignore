@@ -1,0 +1,20 @@
+# Environment
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# User mapping
+data/user_mapping.csv
+
+# VS Code
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db

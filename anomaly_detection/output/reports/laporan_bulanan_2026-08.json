@@ -1,0 +1,45 @@
+{
+  "total_baris": 991,
+  "total_anomali": 12,
+  "tingkat_anomali": 0.0121,
+  "top_host_anomali": {
+    "192.168.2.199": 5,
+    "192.168.2.126": 3,
+    "192.168.2.159": 2,
+    "192.168.2.152": 1,
+    "192.168.2.180": 1
+  },
+  "periode": "2026-08",
+  "tren_harian": [
+    {
+      "tanggal": "2026-08-02",
+      "total_baris": 67,
+      "total_anomali": 2
+    },
+    {
+      "tanggal": "2026-08-03",
+      "total_baris": 189,
+      "total_anomali": 1
+    },
+    {
+      "tanggal": "2026-08-04",
+      "total_baris": 214,
+      "total_anomali": 0
+    },
+    {
+      "tanggal": "2026-08-05",
+      "total_baris": 230,
+      "total_anomali": 1
+    },
+    {
+      "tanggal": "2026-08-06",
+      "total_baris": 243,
+      "total_anomali": 8
+    },
+    {
+      "tanggal": "2026-08-07",
+      "total_baris": 48,
+      "total_anomali": 0
+    }
+  ]
+}
