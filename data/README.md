@@ -23,8 +23,6 @@ Format CSV:
 
 ```csv
 srcip,user,device
-192.168.1.10,Andi Wijaya,Laptop-Andi
-192.168.1.11,,Set-top Box Ruang Tamu
 ```
 
 - Kolom `srcip` **wajib** ada (dipakai sebagai key lookup).
