@@ -1,9 +1,9 @@
 {
-  "trained_at": "2026-08-13T07:50:03.544360",
-  "n_rows_trained": 3826,
+  "trained_at": "2026-08-20T11:43:47.151867",
+  "n_rows_trained": 6794,
   "tanggal_range": [
     "2026-07-19",
-    "2026-08-13"
+    "2026-08-20"
   ],
   "features_used": [
     "dns_ratio",
@@ -23,11 +23,11 @@
     "random_state": 42,
     "n_jobs": -1
   },
-  "anomaly_rate_on_training_data": 0.0052,
+  "anomaly_rate_on_training_data": 0.005,
   "anomaly_score_stats": {
-    "min": -0.343151,
-    "max": 0.081179,
-    "mean": -0.272507,
-    "std": 0.066656
+    "min": -0.34713,
+    "max": 0.080769,
+    "mean": -0.279595,
+    "std": 0.066893
   }
 }

@@ -62,7 +62,20 @@ def load_all_detail_csv() -> pd.DataFrame:
             # aman kalau ada perbedaan representasi timezone antar batch
             # (mis. offset yang beda), yang kalau digabung dulu sebagai teks
             # bisa bikin pandas gagal parse sebagian baris jadi NaT.
-            df["received_at"] = pd.to_datetime(df["received_at"], errors="coerce")
+            #
+            # PENTING: parsing per-file tanpa normalisasi timezone bikin tiap
+            # file bisa punya dtype berbeda (mis. tz-aware +07:00 vs tz-naive
+            # kalau filenya kosong/cuma header). Begitu semua frame digabung
+            # dengan pd.concat, dtype yang beda-beda itu bikin pandas "menyerah"
+            # dan menurunkan kolomnya jadi dtype object biasa (bukan datetime
+            # lagi) -- makanya df["received_at"].dt.date di feature_engineering
+            # bisa gagal dengan "Can only use .dt accessor with datetimelike
+            # values" walau tiap baris kelihatannya valid. Samakan ke UTC lalu
+            # buang info tz (konsisten dengan mysql_db.load_raw_data) supaya
+            # semua frame punya dtype datetime64 yang sama sebelum digabung.
+            df["received_at"] = pd.to_datetime(
+                df["received_at"], errors="coerce", utc=True
+            ).dt.tz_localize(None)
             frames.append(df)
         except Exception as e:
             print(f"[staging] Lewati {f.name}, gagal dibaca: {e}")
